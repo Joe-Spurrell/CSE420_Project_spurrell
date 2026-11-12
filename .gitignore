@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pip-tmp/
+.wheelhouse/
+tmp/
+tensorboard/
+wandb/
+monitor_log*.csv
+*.log
+model/
+environment/Easy/
+environment/clock_test/speed-*/
+environment/clock_test/settings-*.json
+!environment/clock_test/settings-1.json
+!artifacts/progress/ppo_final_progress_30208_steps.zip
