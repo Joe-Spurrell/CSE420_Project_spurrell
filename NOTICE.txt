@@ -1,0 +1,8 @@
+Project source basis: Dronenvai_airl by Zhe Chen.
+https://github.com/zitchan/Dronenvai_airl
+The adapted source is distributed under the Apache License 2.0; see LICENSE.
+
+Research reference: Zhe Chen and Junyu Xuan, “Learning unknown reward function for drone navigation based on inverse deep reinforcement learning,” Neural Computing and Applications (2026).
+https://doi.org/10.1007/s00521-025-11698-1
+
+The separate Easy AirSim environment build is not included in this repository.

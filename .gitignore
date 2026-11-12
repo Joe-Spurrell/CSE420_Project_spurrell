@@ -15,3 +15,8 @@ environment/clock_test/speed-*/
 environment/clock_test/settings-*.json
 !environment/clock_test/settings-1.json
 !artifacts/progress/ppo_final_progress_30208_steps.zip
+
+# Local-only documentation and presentation artifacts
+*.md
+output/
+results/
