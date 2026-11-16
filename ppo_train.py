@@ -12,6 +12,7 @@ import os
 import config
 import argparse
 from stable_baselines3.common.utils import get_device
+from stable_baselines3.common.logger import configure
 from customnetwork import feature_extractor as rnetwork
 from stable_baselines3 import PPO
 from stable_baselines3.common.callbacks import CheckpointCallback
@@ -208,8 +209,13 @@ def main():
     if args.output_dir:
         checkpoint_saving_path = args.output_dir
     os.makedirs(checkpoint_saving_path, exist_ok=True)
+    training_log_dir = os.path.join(
+        checkpoint_saving_path, f"training_log_{time.time_ns()}"
+    )
+    os.makedirs(training_log_dir, exist_ok=False)
     print(f"Checkpoints will save in {checkpoint_saving_path}", flush=True)
-    env = VecMonitor(env, filename='monitor_log.txt')
+    print(f"Episode and PPO metrics will save in {training_log_dir}", flush=True)
+    env = VecMonitor(env, filename=os.path.join(training_log_dir, 'episodes'))
 
     device = get_device()
     policy_kwargs = dict(
@@ -249,6 +255,19 @@ def main():
         print(model.policy.log_std)
 
     model.set_random_seed(random_seed)
+    with open(os.path.join(training_log_dir, 'run_metadata.json'), 'w', encoding='utf-8') as metadata_file:
+        json.dump(
+            {
+                'mode': mode,
+                'seed': random_seed,
+                'clock_speed': clock_speed,
+                'initial_timesteps': int(model.num_timesteps),
+                'requested_additional_timesteps': args.train_step,
+            },
+            metadata_file,
+            indent=2,
+        )
+    model.set_logger(configure(folder=training_log_dir, format_strings=['stdout', 'csv']))
 
     checkpoint_callback = CheckpointCallback(save_freq=10000, save_path=checkpoint_saving_path,
                                              name_prefix='ppo_model')
