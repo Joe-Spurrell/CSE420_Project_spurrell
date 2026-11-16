@@ -1,11 +1,7 @@
 import time
 import numpy as np
-import torch
-import torchvision.models as models
-from torchvision import transforms
 import airsim
 import config
-import matplotlib.pyplot as plt
 from PIL import Image
 import gymnasium as gym
 from gymnasium import spaces
@@ -14,8 +10,6 @@ step_duration = 0.5
 goalY = 57
 outY = -0.5
 floorZ = 1.18
-goals = [7, 17, 27.5, 45, goalY]
-speed_limit = 0.2
 MAX_EPISODE_STEPS = config.MAX_EPISODE_STEPS
 
 
@@ -25,18 +19,15 @@ def obs_combine(img, vel):
     return combined
 
 
-class AirSimEnv_v1(gym.Env):
+class AirSimEnvBase(gym.Env):
     def __init__(self):
-        super(AirSimEnv_v1, self).__init__()
+        super().__init__()
 
         # connect to the AirSim simulator
         # Keep RPC failures bounded so a missing simulator does not hang for
         # AirSim's one-hour default request timeout.
-        self.client = airsim.MultirotorClient(timeout_value=5)
+        self.client = airsim.MultirotorClient(timeout_value=30)
         self.client.confirmConnection()
-        self.action_size = 3
-        self.level = 0
-
         self.img_seq = None
         self.action_space = spaces.Box(
             low=np.array([-1, -1, -1], dtype=np.float32),
@@ -61,7 +52,6 @@ class AirSimEnv_v1(gym.Env):
         return [image, vel]
 
     def reset(self, seed=None, options=None):
-        self.level = 0
         self.client.reset()
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
@@ -75,9 +65,6 @@ class AirSimEnv_v1(gym.Env):
         observation = self.get_state()
         image = observation[0]
         vel = observation[1]
-        # LSTM
-        # self.img_seq = np.repeat(image[np.newaxis, :], 5, axis=0)
-        # histroy = self.img_seq.copy()
         self.img_seq = image
         history = self.img_seq.copy()
         obs = obs_combine(history, vel)
@@ -138,13 +125,6 @@ class AirSimEnv_v1(gym.Env):
 
         # compute reward
         reward = self.compute_reward(quad_pos, observation[1], dead)
-        # # LSTM version
-        # self.img_seq = np.roll(self.img_seq, shift=-1, axis=0)
-        # self.img_seq[-1] = observation[0]
-        # history_ = self.img_seq.copy()
-        # obs_ = obs_combine(history_, observation[1])
-
-        # normal
         self.img_seq = observation[0]
         history_ = self.img_seq.copy()
         obs_ = obs_combine(history_, observation[1])
@@ -153,7 +133,6 @@ class AirSimEnv_v1(gym.Env):
         info = {}
         info['Y'] = quad_pos.y_val
         info['Z'] = quad_pos.z_val
-        info['level'] = self.level
         if landed:
             info['status'] = 'landed'
         elif has_collided:
@@ -173,12 +152,7 @@ class AirSimEnv_v1(gym.Env):
         pass
 
     def compute_reward(self, quad_pos, vel, dead):
-        if quad_pos.y_val >= goals[self.level]:
-            self.level += 1
-            reward = config.reward['goal'] * (1 + self.level / len(goals))
-        else:
-            reward = 0
-        return reward
+        raise NotImplementedError('A reward function must be provided by the environment subclass.')
 
     def close(self):
         self.client.enableApiControl(False)
@@ -186,28 +160,7 @@ class AirSimEnv_v1(gym.Env):
         print('Disconnected.')
 
 
-class AirSimEnv_v2(AirSimEnv_v1):
-    def compute_reward(self, quad_pos, vel, dead):
-        speed = np.linalg.norm(vel)
-        if dead:
-            reward = -2
-        elif vel[1] > 0:
-            reward = 1
-        else:
-            reward = -1
-        return reward
-
-
-class AirSimEnv_v4(AirSimEnv_v1):
-    def compute_reward(self, quad_pos, vel, dead):
-        if dead:
-            reward = -2
-        else:
-            reward = 0.1
-        return reward
-
-
-class AirSimEnv_Progress(AirSimEnv_v1):
+class AirSimEnv_Progress(AirSimEnvBase):
     """Progress-only reward with the same success/failure terminal rewards."""
 
     def __init__(self):

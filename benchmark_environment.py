@@ -33,9 +33,9 @@ def main():
     print(f"Waiting for AirSim at 127.0.0.1:41451 ({args.clock_speed:g}x)...", flush=True)
     wait_for_api()
 
-    from airsim_env import AirSimEnv_v4
+    from airsim_env import AirSimEnv_Progress
 
-    env = AirSimEnv_v4()
+    env = AirSimEnv_Progress()
     client = env.client
     completed_steps = 0
     ended_early = False

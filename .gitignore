@@ -5,8 +5,6 @@ __pycache__/
 .pip-tmp/
 .wheelhouse/
 tmp/
-tensorboard/
-wandb/
 monitor_log*.csv
 *.log
 model/
