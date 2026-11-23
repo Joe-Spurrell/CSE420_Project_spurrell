@@ -1,0 +1,63 @@
+@startuml
+ title PPO neural network architecture used by the project
+ left to right direction
+ skinparam shadowing false
+ skinparam componentStyle rectangle
+ skinparam packageStyle rectangle
+ skinparam defaultTextAlignment center
+ skinparam ArrowColor #444444
+
+ rectangle "Observation\n(batch, 1, 72, 131)\n128 depth-image columns + 3 velocity columns" as Obs
+
+ package "Actor: chooses the drone action" {
+   rectangle "Actor feature extractor\n(separate copy)\noutputs 96 features" as ActorFeatures
+   rectangle "Policy MLP\n96 -> 128 -> 64 -> 32 -> 16\nTanh activations" as ActorMLP
+   rectangle "Action head\n16 -> 3 means\n+ learned log standard deviations" as ActionHead
+   rectangle "Gaussian action distribution\ntraining: sample action\nevaluation: use mean\nclip each value to [-1,1]" as ActionOutput
+   ActorFeatures --> ActorMLP
+   ActorMLP --> ActionHead
+   ActionHead --> ActionOutput
+ }
+
+ package "Critic: estimates future return during training" {
+   rectangle "Critic feature extractor\n(separate copy)\noutputs 96 features" as CriticFeatures
+   rectangle "Value head\n96 -> 1\nV(observation)" as ValueHead
+   CriticFeatures --> ValueHead
+ }
+
+ Obs --> ActorFeatures
+ Obs --> CriticFeatures
+
+ rectangle "Normalized action output\n[x, y, z]" as Action
+ ActionOutput --> Action
+ rectangle "Environment maps action to velocity\n[1.5x, 1.5y + 0.5, 1.5z] m/s" as VelocityCommand
+ Action ..> VelocityCommand : environment step()
+
+ note bottom of ActorFeatures
+ Both feature-extractor copies perform the same operations:
+ obs_split(combined) separates image (batch,1,72,128)
+ and velocity (batch,3), read from row 0's last 3 columns.
+
+ Image path:
+ conv1: 1->16; conv + max pool + LeakyReLU
+ conv2: 16->32; conv + max pool + LeakyReLU
+ conv3: 32->128; conv + max pool + LeakyReLU
+ spatial result: 128x1x2; flatten -> 256
+ image_fc1: 256->64 -> LeakyReLU
+ image_fc2: 64->48
+
+ Velocity path: vel_fc1: 3->48
+ Concatenate image 48 + velocity 48 -> 96; apply Tanh.
+ The actor and critic have separate extractor parameters.
+ end note
+
+ note bottom of ValueHead
+ In this project ppo_train.py sets qf=[128,64,32,16].
+ Installed Stable-Baselines3 2.2.1 expects vf for PPO,
+ so qf is ignored. The critic therefore has no hidden MLP
+ after the 96 features; its value head produces one scalar.
+
+ During evaluation, model.predict() uses the actor only;
+ the critic is for PPO training, not the movement command.
+ end note
+@enduml
