@@ -161,9 +161,36 @@ def main():
                         help='Show the AirSim scene with the FlyWithMe camera during training')
     parser.add_argument('--mode', choices=['progress'], default='progress',
                         help='Reward function to train (the progress-only baseline)')
+    parser.add_argument(
+        '--progress_alpha',
+        type=float,
+        default=None,
+        help=(
+            'Scale normalized forward progress in the reward. Defaults to '
+            f"config value {config.reward['progress_alpha']:g}. Use a separate output directory "
+            'when comparing reward scales.'
+        ),
+    )
+    parser.add_argument(
+        '--failure_penalty',
+        type=float,
+        default=None,
+        help=(
+            'Terminal reward for collision, leaving the route, or timing out. '
+            f"Defaults to config value {config.reward['dead']:g}; must be negative."
+        ),
+    )
     args = parser.parse_args()
     if args.resume_from and not args.output_dir:
         parser.error('--output_dir is required with --resume_from so the source run is preserved.')
+    if args.progress_alpha is not None:
+        if not np.isfinite(args.progress_alpha) or args.progress_alpha <= 0:
+            parser.error('--progress_alpha must be a positive finite number.')
+        config.reward['progress_alpha'] = args.progress_alpha
+    if args.failure_penalty is not None:
+        if not np.isfinite(args.failure_penalty) or args.failure_penalty >= 0:
+            parser.error('--failure_penalty must be a negative finite number.')
+        config.reward['dead'] = args.failure_penalty
 
     clock_speed, settings_path, explicit_clock_request = configure_clock_speed(args.clock_speed)
     explicit_clock_request = explicit_clock_request or args.view
@@ -192,7 +219,12 @@ def main():
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
 
-    print("Training PPO with shared terminal rewards plus normalized route progress.", flush=True)
+    print(
+        "Training PPO with shared terminal rewards plus normalized route progress "
+        f"(progress_alpha={config.reward['progress_alpha']:g}, "
+        f"failure_penalty={config.reward['dead']:g}).",
+        flush=True,
+    )
     register(
         id='AirSim/AirSimEnv-progress',
         entry_point='airsim_env:AirSimEnv_Progress',
@@ -261,6 +293,8 @@ def main():
                 'mode': mode,
                 'seed': random_seed,
                 'clock_speed': clock_speed,
+                'progress_alpha': float(config.reward['progress_alpha']),
+                'failure_penalty': float(config.reward['dead']),
                 'initial_timesteps': int(model.num_timesteps),
                 'requested_additional_timesteps': args.train_step,
             },

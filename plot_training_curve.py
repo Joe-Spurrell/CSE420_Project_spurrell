@@ -101,7 +101,8 @@ def main():
         3, 1, figsize=(13, 11), sharex=True
     )
     fig.suptitle(
-        f"Progress-reward PPO training — seed {metadata['seed']}, "
+        f"Progress-reward PPO (alpha={metadata.get('progress_alpha', 1.0):g}) — "
+        f"seed {metadata['seed']}, "
         f"AirSim {metadata['clock_speed']:g}x",
         fontsize=17,
         fontweight="bold",

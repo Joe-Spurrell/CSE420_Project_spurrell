@@ -1,0 +1,11 @@
+# PowerShell — fresh alpha 5 model with a stronger failure penalty
+
+Set-Location "C:\Users\esoj0\Documents\CSE420 project\airsim-drone-reward-study"
+$python = ".\.venv\Scripts\python.exe"
+$blocks = (Resolve-Path .\environment\Easy\Blocks.exe).Path
+
+# Start training: fresh initialization, alpha 5, failure/timeout penalty -4, 50,000 steps
+& $python .\ppo_train.py --exe_path $blocks --mode progress --seed 3 --train_step 50000 --n_steps 512 --batch_size 64 --clock_speed 1 --progress_alpha 5 --failure_penalty -4 --output_dir .\model\ppo_checkpoints\progress_alpha5_failure4_seed3_50k
+
+# After training finishes, run one visible episode from the saved model
+& $python .\run_progress_model.py --exe_path $blocks --model .\model\ppo_checkpoints\progress_alpha5_failure4_seed3_50k\ppo_final_progress.zip --progress_alpha 5 --failure_penalty -4 --episodes 1 --device cuda --log_every 1
